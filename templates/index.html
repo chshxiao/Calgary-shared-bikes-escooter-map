@@ -11,30 +11,49 @@
     </script>
 
     <!--stylesheet-->
-    <link rel="stylesheet" href="templates/style.css">
+    <link rel="stylesheet"
+          href="{{ url_for('static',filename='css/style.css') }}">
 
-    <!--JQuery, moment.js, and date range picker-->
+    <!--JQuery-->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
-    
+
     <!--leaflet.markerclustergroup-->
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css">
     <script type="text/javascript" src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
 
     <title>Index</title>
 
   </head>
 
   <body>
+
     <div id="map">
     </div>
 
-    <input id="daterangepicker" type="text" name="daterange" />
     <button id="refreshButton">Refresh Button</button>
+    <button id="filterButton">></button>
+    <div id="filterContainer">
+      <form>
+        <legend>Select the Company:</legend>
+        <div>
+          <input type="radio" id="allCompanies" name="company" value="All" checked>
+          <label for="allCompanies">All</label>
+        </div>
+        <div>
+          <input type="radio" id="birdCompany" name="company" value="Bird">
+          <label for="birdCompany">Bird</label>
+        </div>
+        <div>
+          <input type="radio" id="neuronCompany" name="company" value="Neuron">
+          <label for="neuronCompany">Neuron</label>
+        </div>
+        <div>
+          <button type="submit">Submit</button>
+        </div>
+      </form>
+    </div>
 
-    <script src="templates/index.js">
-    </script>
+    <script src="{{ url_for('static',filename='js/index.js') }}"></script>
   </body>
 </html>

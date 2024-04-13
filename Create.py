@@ -16,7 +16,8 @@ def main():
                         vehicle_type VARCHAR NOT NULL,
                         ride_type VARCHAR NOT NULL,
                         start_time TIMESTAMP NOT NULL,
-                        end_time TIMESTAMP NOT NULL);"""))
+                        end_time TIMESTAMP NOT NULL,
+                        estimated_time INTERVAL NOT NULL);"""))
     db.execute(text("""CREATE TABLE users (
                         user_id VARCHAR PRIMARY KEY,
                         password VARCHAR NOT NULL,
