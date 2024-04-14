@@ -34,24 +34,29 @@
     <button id="refreshButton">Refresh Button</button>
     <button id="filterButton">></button>
     <div id="filterContainer">
-      <form>
-        <legend>Select the Company:</legend>
-        <div>
-          <input type="radio" id="allCompanies" name="company" value="All" checked>
-          <label for="allCompanies">All</label>
-        </div>
-        <div>
-          <input type="radio" id="birdCompany" name="company" value="Bird">
-          <label for="birdCompany">Bird</label>
-        </div>
-        <div>
-          <input type="radio" id="neuronCompany" name="company" value="Neuron">
-          <label for="neuronCompany">Neuron</label>
-        </div>
-        <div>
-          <button type="submit">Submit</button>
-        </div>
-      </form>
+      <legend>Select the Company:</legend>
+      <div>
+        <input type="radio" id="allCompanies" name="company" value="All" checked>
+        <label for="allCompanies">All</label>
+      </div>
+      <div>
+        <input type="radio" id="birdCompany" name="company" value="Bird">
+        <label for="birdCompany">Bird</label>
+      </div>
+      <div>
+        <input type="radio" id="neuronCompany" name="company" value="Neuron">
+        <label for="neuronCompany">Neuron</label>
+      </div>
+      <button id="submit">Submit</button>
+    </div>
+
+    <div id="legendBox">
+      <img class="icon" src="https://raw.githubusercontent.com/chshxiao/Calgary-shared-bikes-escooter-map/master/img/neuron_scooter2.png">
+      <span class="legend">Neuron E-scooter</span>
+      <br>
+      <img class="icon" src="https://raw.githubusercontent.com/chshxiao/Calgary-shared-bikes-escooter-map/master/img/bird_scooter2.png">
+      <span class="legend">Bird E-scooter</span>
+
     </div>
 
     <script src="{{ url_for('static',filename='js/index.js') }}"></script>

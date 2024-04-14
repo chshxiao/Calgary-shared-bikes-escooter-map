@@ -39,3 +39,23 @@
   border: 2px solid #636363;
   z-index: -1;
 }
+
+#legendBox {
+  position: absolute;
+  height: 50px;
+  width: 120px;
+  bottom: 20px;
+  right: 10px;
+  padding: 10px;
+  background-color: white;
+  opacity: 0.7;
+}
+
+.icon {
+  height: 20px;
+  width: 2ppx;
+}
+
+.legend {
+  font-size: 10px;
+}
