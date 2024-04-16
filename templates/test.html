@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <!--leaflet-->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin="">
+    </script>
+
+
+    <!--JQuery-->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/jquery/latest/jquery.min.js"></script>
+
+    <!--leaflet.markerclustergroup-->
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css">
+    <script type="text/javascript" src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+
+    <title>Index</title>
+
+  </head>
+
+  <body>
+    <script>
+        async function fetchData(url) {
+          // Try to execute the following code block
+          try {
+            // Await for the response from the API
+            let response = await fetch(url,{mode:'no-cors'});
+            // Await for the response to be parsed as JSON
+            let data = await response.json();
+            // Return the data
+            return data;
+            // Catch any error that occurs
+          } catch (error) {
+            // Log the error to the console
+            console.error(error);
+          }
+        }
+        let url = 'https://maps.googleapis.com/maps/api/directions/json' +
+          `?destination=Montreal` +
+          `&origin=Toronto` +
+          `&key=AIzaSyCOX16JTdJvX_pLnOdPS35L5FpqrM2W24Q`;
+        fetchData(url)
+        .then(data => console.log(data));
+    </script>

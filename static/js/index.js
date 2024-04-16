@@ -1,8 +1,13 @@
 
 document.addEventListener('DOMContentLoaded', function() {
 
+    // constant
+    let bird_full_charge_dist = 25;             // the maximum range coverage of bird scooter for a full charge
+    let neuron_full_charge_dist = 60;           // the maximum range coverage of neuron scooter for a full charge
+
+
     // create the map
-    let map = L.map('map').setView([51.02, -114.05], 11);
+    let map = L.map('map', {zoomControl: false}).setView([51.02, -114.05], 11);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -16,10 +21,42 @@ document.addEventListener('DOMContentLoaded', function() {
     }).trigger("resize");
 
 
+    // set the zoom control on the left bottom corner
+    new L.Control.Zoom({ position: 'bottomleft' }).addTo(map);
+    new L.control.scale({ position: 'bottomright' }).addTo(map);
+
+
     // create a variable for marker cluster
     var markers = L.markerClusterGroup();
 
+
+    // create a variable for polyline cluster
+    var polylines = [];
+
     
+    // marker for destination
+    var dest_marker = [];
+
+
+    // marker for my location
+    var my_location_marker = [];
+
+
+    // current location
+    let latitude;
+    let longitude;
+
+
+    // bike location
+    let bike_latitude;
+    let bike_longitude;
+
+
+    // destination location
+    let dest_latitude;
+    let dest_longitude;
+
+
     // create scooter icons
     var neuron_icon = L.icon({
         iconUrl: 'https://raw.githubusercontent.com/chshxiao/Calgary-shared-bikes-escooter-map/master/img/neuron_scooter2.png',
@@ -34,7 +71,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
     // direction api token
-    let direction_token = 'AIzaSyCOX16JTdJvX_pLnOdPS35L5FpqrM2W24Q';
+    let direction_token = 'pk.eyJ1Ijoicm95eGlhbyIsImEiOiJjbHRoeXNmNnYwYWFzMmlvMXJ5bXRtaHZuIn0.7wuCPxXiZeN9KyF8oAKPFg';
+
+
+    // geolocation handler
+    let geolocation_id;
+
+
+    // record the ride
+    let record_flag = false;
+    let start_lat = 0;
+    let start_lon = 0;
+    let start_time = 0;
+    let end_lat = 0;
+    let end_lon = 0;
+    let end_time = 0;
 
 
     function main_function() {
@@ -42,20 +93,29 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!navigator.geolocation) {
             document.alert("Geolocation is not supported by your browser");
         } else {
-            navigator.geolocation.getCurrentPosition(
+            geolocation_id = navigator.geolocation.watchPosition(
                 (position) => {
+                    clear_my_location();
+
                     // get the current location
-                    const latitude = position.coords.latitude;
-                    const longitude = position.coords.longitude;
+                    latitude = position.coords.latitude;
+                    longitude = position.coords.longitude;
 
 
-                    map.setView([latitude, longitude], 14);
+                    // set current location as the center of the map view
+                    // if no destination or bike specified
+                    if(dest_latitude == 0 || dest_latitude == undefined) {
+                        if (bike_latitude == 0 || bike_latitude == undefined) {
+                            map.setView([latitude, longitude], 14);
+                        }
+                    }
 
 
                     // marker for current location
-                    var my_loc_marker = L.circle([latitude, longitude], {
-                        radius: 100
+                    var my_marker = L.circleMarker([latitude, longitude], {
+                        radius: 5
                     }).addTo(map);
+                    my_location_marker.push(my_marker);
 
 
                     // // route test'
@@ -95,60 +155,218 @@ document.addEventListener('DOMContentLoaded', function() {
                                 .then(response => response.json())
                                 .then(data => {
 
-                                    // function for running direction api
-                                    function navigate_button(from_lat, from_lon, to_lat, to_lon) {
-                                        console.log(from_lat);
-                                        let url = 'https://maps.googleapis.com/maps/api/directions/json' +
-                                                    `?destination=${to_lat},${to_lon}` +
-                                                    `&origin=${from_lat},${from_lon}` + 
-                                                    `&key=${direction_token}`;
-                                        console.log(url);
-                                        fetch(url, {
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                            },
-                                            mode:'no-cors'
-                                        })
+                                    let neuron_data = data.data.bikes;
+                                    neuron_data.forEach(dat => {
+                                        dat.company = 'Neuron';
+                                    })
+
+
+                                    // get the overall data
+                                    // overall data is used instead of neuron data or bird data
+                                    let overall_data = bird_data.map((x) => x);
+                                    overall_data.push.apply(overall_data, neuron_data);
+
+
+                                    // function for navigate to the bike
+                                    // create a pop up on the marker
+                                    function navigate_to_bike(bike_id, company, bat_left) {
+
+                                        // navigate to the bike
+                                        let url = 'https://api.mapbox.com/directions/v5/mapbox/walking/' +
+                                                    `${longitude},${latitude};` +
+                                                    `${bike_longitude},${bike_latitude}` +
+                                                    '?steps=true' +
+                                                    `&access_token=${direction_token}`;
+                                        
+                                        fetch(url)
                                         .then(response => response.json())
-                                        .then(data => {console.log(data);})
+                                        .then(data => {
+
+                                            // if the destination is not specified, only navigate to the bike
+                                            if (dest_latitude == 0 || dest_latitude == undefined) {
+
+                                                // get distance and duration to the bike
+                                                var bike_dist = (data['routes'][0]['distance'] / 1000).toPrecision(2);
+                                                var bike_duration = (data['routes'][0]['duration'] / 60).toPrecision(2);
+
+                                                var popup = L.popup()
+                                                    .setLatLng([bike_latitude, bike_longitude])
+                                                    .setContent(`bike id: ${bike_id}<br>` +
+                                                        `Company: ${company}<br>` +
+                                                        `Battery left: ${(bat_left * 100).toPrecision(2)}%<br>` +
+                                                        `distance to bike: ${bike_dist}km<br>` +
+                                                        `duration to bike: ${bike_duration}min`)
+                                                    .addTo(map);
+
+
+                                                // display the route to the bike
+                                                var latlngs = [];
+                                                var to_bike_steps = data['routes'][0]['legs'][0]['steps'];
+
+                                                to_bike_steps.forEach(step => {
+                                                    var lat = step['intersections'][0]['location'][1];
+                                                    var lon = step['intersections'][0]['location'][0];
+
+                                                    latlngs.push([lat, lon]);
+                                                })
+
+                                                var pline = L.polyline(latlngs, { dashArray: '5, 10' }).addTo(map);
+                                                polylines.push(pline);
+
+
+                                                // set the middle between bike and current location as center of the map
+                                                map.setView([(latitude + bike_latitude)/2, (longitude + bike_longitude)/2], 14);
+                                            }
+
+
+                                            // if the destination is specified, navigate from the bike to the destination
+                                            else {
+
+                                                // get distance and duration to the bike
+                                                var bike_dist = (data['routes'][0]['distance'] / 1000).toPrecision(2);
+                                                var bike_duration = Number((data['routes'][0]['duration'] / 60).toPrecision(2));
+
+
+                                                // get steps to the bike
+                                                var latlngs = [];
+                                                var to_bike_steps = data['routes'][0]['legs'][0]['steps'];
+
+                                                to_bike_steps.forEach(step => {
+                                                    var lat = step['intersections'][0]['location'][1];
+                                                    var lon = step['intersections'][0]['location'][0];
+
+                                                    latlngs.push([lat, lon]);
+                                                })
+
+                                                var bike_pline = L.polyline(latlngs, { dashArray: '5, 10' }).addTo(map);
+                                                polylines.push(bike_pline);
+
+
+                                                // get destination information
+                                                let bike2dest_url = 'https://api.mapbox.com/directions/v5/mapbox/cycling/' +
+                                                                    `${bike_longitude},${bike_latitude};` +
+                                                                    `${dest_longitude},${dest_latitude}` +
+                                                                    '?steps=true' +
+                                                                    `&access_token=${direction_token}`;
+                                                fetch(bike2dest_url)
+                                                .then(response => response.json())
+                                                .then(data => {
+
+                                                    // get distance and duration to the destination
+                                                    var dest_dist = (data['routes'][0]['distance'] / 1000).toPrecision(2);
+                                                    var dest_duration = Number((data['routes'][0]['duration'] / 60).toPrecision(2));
+
+
+                                                    // estimate the price for the trip
+                                                    var price = Number((1.15 + 0.42 * dest_duration).toPrecision(2));
+                                                    if (price < 2.5) {
+                                                        price = 2.5;
+                                                    }
+
+
+                                                    // get steps from the bike to the destination
+                                                    var latlngs = [];
+                                                    var bike2dest_steps = data['routes'][0]['legs'][0]['steps'];
+
+                                                    bike2dest_steps.forEach(step => {
+                                                        var lat = step['intersections'][0]['location'][1];
+                                                        var lon = step['intersections'][0]['location'][0];
+
+                                                        latlngs.push([lat, lon]);
+                                                    })
+
+                                                    var dest_pline = L.polyline(latlngs).addTo(map);
+                                                    polylines.push(dest_pline);
+
+
+                                                    // set the middle between bike and current location as center of the map
+                                                    map.setView([(latitude + dest_latitude)/2, (longitude + dest_longitude)/2], 14);
+
+
+                                                    // create the popup
+                                                    var popup = L.popup()
+                                                        .setLatLng([bike_latitude, bike_longitude])
+                                                        .setContent(`bike id: ${bike_id}<br>` +
+                                                            `Company: ${company}<br>` +
+                                                            `Battery left: ${(bat_left * 100).toPrecision(2)}%<br>` +
+                                                            `distance to bike: ${bike_dist}km<br>` +
+                                                            `duration to bike: ${bike_duration}min<br>` +
+                                                            `distance to destination: ${dest_dist}km<br>` +
+                                                            `duration to destination: ${dest_duration}min<br>` +
+                                                            `total duration: ${bike_duration + dest_duration}min<br>` +
+                                                            `estimated price: $${price}`
+                                                        ).addTo(map);
+
+
+                                                    // determine if the remaining battery is sufficient
+                                                    if (company == 'Bird') {
+                                                        if ((bat_left * bird_full_charge_dist) < dest_dist) {
+                                                            document.getElementById('lowBatteryAlert').style.display = 'block';
+                                                            setTimeout(() => {
+                                                                document.getElementById('lowBatteryAlert').style.display = 'none';
+                                                            }, 2000);
+                                                        }
+                                                    } else if (company == 'Neuron') {
+                                                        if ((bat_left * neuron_full_charge_dist) < dest_dist) {
+                                                            document.getElementById('lowBatteryAlert').style.display = 'block';
+                                                            setTimeout(() => {
+                                                                document.getElementById('lowBatteryAlert').style.display = 'none';
+                                                            }, 2000);
+                                                        }
+                                                    }                                                   
+                                                })
+
+                                            }
+                                        })
                                     }
 
 
                                     // function for adding elements to marker cluster layer and display them
                                     function create_marker_cluster(overall_data) {
+                                        
                                         // remove the old cluster layer group
                                         map.removeLayer(markers);
+
 
                                         // create the new cluster layer group
                                         markers = L.markerClusterGroup();
                                         overall_data.forEach(dat => {
+
                                             if (dat['company'] == 'Neuron') {
+
                                                 markers.addLayer(
                                                     L.marker([Number(dat['lat']), Number(dat['lon'])], { icon: neuron_icon })
-                                                        .bindPopup(() => {
-                                                            const div = document.createElement("div");
-                                                            div.innerHTML = `bike id: ${dat['bike_id']}<br>` +
-                                                                            `Company: ${dat['company']}<br>` +
-                                                                            `Battery left: ${dat['battery_pct'] * 100}%<br>`;
+                                                        .on('click', () => {
 
-                                                            const button = document.createElement("button");
-                                                            button.innerHTML = "Navigate";
-                                                            button.onclick = navigate_button(latitude, longitude,
-                                                                                            dat['lat'], dat['lon']);
-                                                            div.appendChild(button);
-                                                            return div;
-                                                            // return `bike id: ${dat['bike_id']}<br>` +
-                                                            //     `Company: ${dat['company']}<br>` +
-                                                            //     `Battery left: ${dat['battery_pct'] * 100}%`;
+                                                            // remove old popup and polyline route
+                                                            clear_popup_route();
+
+                                                            bike_latitude = Number(dat['lat']);
+                                                            bike_longitude = Number(dat['lon']);
+                                                            let bike_id = dat['bike_id'];
+                                                            let company = dat['company'];
+                                                            let battery_pct = dat['battery_pct'];
+
+                                                            navigate_to_bike(bike_id, company, battery_pct);
                                                         })
-                                                )
+
+                                                );
+
                                             } else if (dat['company'] == 'Bird') {
                                                 markers.addLayer(
                                                     L.marker([Number(dat['lat']), Number(dat['lon'])], { icon: bird_icon })
-                                                        .bindPopup(() => {
-                                                            return `bike id: ${dat['bike_id']}<br>` +
-                                                                `Company: ${dat['company']}<br>` +
-                                                                `Battery left: ${dat['battery_pct'] * 100}%`;
+                                                        .on('click', () => {
+                                                            
+                                                            // remove old popup and polyline route
+                                                            clear_popup_route();
+
+                                                            bike_latitude = Number(dat['lat']);
+                                                            bike_longitude = Number(dat['lon']);
+                                                            let bike_id = dat['bike_id'];
+                                                            let company = dat['company'];
+                                                            let battery_pct = dat['battery_pct'];
+
+                                                            navigate_to_bike(bike_id, company, battery_pct);
                                                         })
                                                 )
                                             }
@@ -157,18 +375,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                     }
 
 
-                                    let neuron_data = data.data.bikes;
-                                    neuron_data.forEach(dat => {
-                                        dat.company = 'Neuron';
-                                    })
-
-                                    let overall_data = bird_data.map((x) => x);
-                                    overall_data.push.apply(overall_data, neuron_data);
-
+                                    // create markers cluster
                                     create_marker_cluster(overall_data);
 
 
-                                    // filter
+                                    // filter to company
                                     document.querySelector('#submit').onclick = function () {
                                         let company = document.getElementsByName('company');
                                         let value;
@@ -197,6 +408,70 @@ document.addEventListener('DOMContentLoaded', function() {
                                         }
                                     }
 
+
+                                    // navigate to the destination
+                                    document.querySelector('#destinationSubmit').onclick = function () {
+
+                                        // clean up the previous navigate route
+                                        polylines.forEach((pline) => {
+                                            map.removeLayer(pline);
+                                        })
+
+
+                                        // retrieve the destination from the input
+                                        let destination_val = document.getElementById('destinationText').value;
+
+
+                                        // get the destination in latlon
+                                        let destination2latlngurl = 'https://api.mapbox.com/search/geocode/v6/forward' + 
+                                                                    `?q=${destination_val}` +
+                                                                    `&access_token=${direction_token}`;
+                                        fetch(destination2latlngurl)
+                                        .then(response => response.json())
+                                        .then(data => {
+
+                                            // get the first point coordiante
+                                            dest_latitude = Number(data['features'][0]['geometry']['coordinates'][1]);
+                                            dest_longitude = Number(data['features'][0]['geometry']['coordinates'][0]);
+
+
+                                            // show the destination on the map
+                                            let marker = L.marker([dest_latitude, dest_longitude]).addTo(map)
+                                            dest_marker.push(marker);
+
+
+                                            // get the route to the destination
+                                            let destination_url = 'https://api.mapbox.com/directions/v5/mapbox/cycling/' +
+                                                                    `${longitude},${latitude};` +
+                                                                    `${dest_longitude},${dest_latitude}` +
+                                                                    '?steps=true' +
+                                                                    `&access_token=${direction_token}`;
+                                            fetch(destination_url)
+                                            .then(response => response.json())
+                                            .then(data => {
+
+                                                // display the route to the destination
+                                                var latlngs = [];
+                                                var to_dest_steps = data['routes'][0]['legs'][0]['steps'];
+
+                                                to_dest_steps.forEach(step => {
+                                                    var lat = step['intersections'][0]['location'][1];
+                                                    var lon = step['intersections'][0]['location'][0];
+
+                                                    latlngs.push([lat, lon]);
+                                                })
+
+                                                var pline = L.polyline(latlngs).addTo(map);
+                                                polylines.push(pline);
+
+
+                                                // set the middle of the destination and the current location as the center of the map
+                                                map.setView([(latitude + dest_latitude)/2, (longitude + dest_longitude)/2], 14);
+                                            })
+                                        })
+                                        
+                                    }
+
                                 });
 
                         })
@@ -210,9 +485,142 @@ document.addEventListener('DOMContentLoaded', function() {
     main_function();
 
 
+    // function to clear my location marker
+    function clear_my_location() {
+        if (my_location_marker.length > 0) {
+            map.removeLayer(my_location_marker[0]);
+            my_location_marker = [];
+        }
+    }
+
+    // function to clear navigation
+    function clear_navigation() {
+        // clear navigation box
+        document.getElementById('destinationText').value="";
+
+        // clear destination coordinates
+        dest_latitude = 0;
+        dest_longitude = 0;
+
+
+        // clear destination marker
+        if (dest_marker.length > 0) {
+            map.removeLayer(dest_marker[0]);
+            dest_marker = [];
+        }
+
+        clear_popup_route();
+    }
+
+
+    // function to clear popup and route polylines
+    function clear_popup_route() {
+        map.closePopup();
+        polylines.forEach((pline) => {
+            map.removeLayer(pline);
+        })
+    }
+
+
+    //function to clear filter
+    function clear_filter() {
+
+        // hide the filter panel
+        document.getElementById('filterContainer').style.zIndex = -1;
+        document.getElementById('filterButton').innerHTML = '>';
+
+
+        // change the checked option back to all
+        document.getElementById('allCompanies').checked = true;
+    }
+
+
+    // // record the ride
+    // document.querySelector('#recordTripButton').onclick = function() {
+        
+    //     // toggle the record flag
+    //     record_flag = !record_flag;
+    //     console.log(record_flag);
+
+
+    //     // It's recording the trip
+    //     if (record_flag) {
+
+    //         // change the button
+    //         document.getElementById('recordTripButton').innerHTML = 'stop the record';
+
+    //         // record the latitude longitude and the date
+    //         start_lat = latitude;
+    //         start_lon = longitude;
+    //         start_time = dayjs();
+    //     }
+    //     // end the record
+    //     else {
+
+    //         // change the button
+    //         document.getElementById('recordTripButton').innerHTML = 'Record the ride';
+
+
+    //         // record the end latitude, longitude, and the time
+    //         end_lat = latitude;
+    //         end_lon = longitude;
+    //         end_time = dayjs();
+
+
+    //         // display the submit button
+    //         document.getElementById('recordTripButton').style.display = 'none';
+
+
+    //         // display the result
+    //         // get destination information
+    //         let trip_url = 'https://api.mapbox.com/directions/v5/mapbox/cycling/' +
+    //                             `${start_lon},${start_lat};` +
+    //                             `${end_lon},${end_lat}` +
+    //                             `?access_token=${direction_token}`;
+    //         fetch(trip_url)
+    //         .then(response => response.json())
+    //         .then(data => {
+                
+    //             let route_dist = (data['routes'][0]['distance'] / 1000).toPrecision(2);
+    //             let route_duration = Number((data['routes'][0]['duration'] / 60).toPrecision(2));
+    //             let duration = end_time.diff(start_time, 'minute');
+
+
+    //             // display the result
+    //             let result_box = document.getElementById('result');
+    //             result_box.style.display = 'block';
+    //             let result_text = '<p style="text-align: center; font-size: 17px; font-weight: bold">Ride Summary</p>' +
+    //                                 `<p style="text-align: center; font-size: 15px;">start time: ${start_time.format('YYYY-MM-DD HH:MM:ss')}<br>` +
+    //                                 `end time: ${end_time.format('YYYY-MM-DD HH:MM:ss')}<br>` +
+    //                                 `duration: ${duration}min<br>` +
+    //                                 `distance: ${route_dist}km</p>` +
+    //                                 `<div style="text-align:center">` +
+    //                                 `<form action="{{ url_for('templates', filename="error.html") }}" method="post">` + 
+    //                                 `<input type="radio" id="commute" name="ride_type" value="commute">` +
+    //                                 `<label for="commute">Commute</label>` +
+    //                                 `<input type="radio" id="fun" name="ride_type" value="commute">` + 
+    //                                 `<label for="fun">Relaxation</label><br>` +
+    //                                 `<button>Ok</button>` +
+    //                                 `</form>` + 
+    //                                 '</div>';
+
+    //             result_box.innerHTML = result_text;
+
+    //         })
+    //     }
+    // }
+
+
     // refresh the page
     document.querySelector('#refreshButton').onclick = function () {
-        markers.clearLayers();
+
+        markers.clearLayers();              // clear marker cluster group
+        clear_popup_route();                // clear popup and route polylines
+        clear_navigation();                 // clear navigation
+        clear_filter();                     // clear filter
+        clear_my_location();                // clear my location marker
+        navigator.geolocation.clearWatch(id);
+
         main_function();
     }
 
@@ -230,111 +638,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 
-
-
-    
-
+    // clear the navigation page
+    document.querySelector('#destinationClear').onclick = function () {
+        clear_navigation();
+    }
 });
 
-
-
-
-
-
-//  // create the map
-//  let map = L.map('map').setView([51.02, -114.05], 11);
-//  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-//    maxZoom: 19,
-//    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-//  }).addTo(map);
-//
-//
-//  // set the height of the map
-//  $(window).on("resize", function() {
-//    $("#map").height($(window).height());
-//    map.invalidateSize();
-//  }).trigger("resize");
-//
-//
-//  // create a variable for marker cluster
-//  var markers = L.markerClusterGroup();
-//
-//
-//  // date range picker
-//  // $(function() {
-//  //   $('input[name="daterange"]').daterangepicker({
-//  //     opens: 'left'
-//  //   }, function(start, end, label) {
-//  //     console.log("A new date selection was made: " + start.format('YYYY-MM-DD') + ' to ' + end.format('YYYY-MM-DD'));
-//  //     console.log(start);
-//  //   });
-//  // });
-//
-//
-//  // get the earliest date
-//  fetch('https://data.calgary.ca/resource/c2es-76ed.json?$select=min(issueddate)')
-//  .then(response => response.json())
-//  .then(data => {
-//
-//    let earliest = data[0]['min_issueddate'];
-//    let year = earliest.substring(0, 4);
-//    let month = earliest.substring(5, 7);
-//    let day = earliest.substring(8, 10);
-//    let earliest_date_format = month + '/' + day + '/' + year;
-//
-//
-//    // set up the date range picker
-//    let datepicker = $('input[name="daterange"]').daterangepicker({
-//      startDate: earliest_date_format,
-//      showDropdowns: true
-//    }, function(start, end) {
-//
-//      let start_date = start.format('YYYY-MM-DD');
-//      let end_date = end.format('YYYY-MM-DD');
-//
-//      let url = `https://data.calgary.ca/resource/c2es-76ed.json?$where=issueddate>='${start_date}' AND issueddate<='${end_date}'`;
-//      fetch(url)
-//      .then(response => response.json())
-//      .then(data => {
-//
-//        console.log(data);
-//
-//        data.forEach(dat => {
-//          markers.addLayer(
-//            L.marker([Number(dat['latitude']), Number(dat['longitude'])])
-//              .bindPopup(() => {
-//
-//                let permitNum = dat['permitnum'];
-//                let issuedDate = dat['issueddate'];
-//                let workclassGroup = dat['workclassgroup'];
-//                let communityName = dat['communityname'];
-//                let originalAddress = dat['originaladdress'];
-//                let contractorName = dat['contractorname'] ?? "";
-//
-//                return `Permit Number: ${permitNum}<br>` +
-//                        `Issued Date: ${issuedDate}<br>`+
-//                        `Workclass Group: ${workclassGroup}<br>` +
-//                        `Contractor Name: ${contractorName}<br>` +
-//                        `Community Name: ${communityName}<br>` +
-//                        `Original Address: ${originalAddress}`;
-//              })
-//          )
-//          map.addLayer(markers);
-//
-//        })
-//      });
-//    });
-//
-//
-//    document.querySelector('#refreshButton').onclick = function() {
-//      markers.clearLayers();
-//      map.setView([51.02, -114.05], 11, {
-//        animate: true,
-//        duration: 0.5
-//      });
-//      datepicker.data('daterangepicker').setStartDate(earliest_date_format);
-//      datepicker.data('daterangepicker').setEndDate(moment());
-//    }
-//  });
-//
-//});

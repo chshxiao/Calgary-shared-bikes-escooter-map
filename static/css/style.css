@@ -5,11 +5,10 @@
   z-index: 0;
 }
 
-#daterangepicker {
+#signOutLink {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  padding: 10px;
+  top: 5px;
+  left: 5px;
 }
 
 #refreshButton {
@@ -22,7 +21,7 @@
 
 #filterButton {
   position: absolute;
-  top: 100px;
+  bottom: 80px;
   left: 20px;
   padding: 10px;
   background-color: white;
@@ -31,7 +30,7 @@
 
 #filterContainer {
   position: absolute;
-  top: 20px;
+  bottom: 20px;
   left: 80px;
   height: 200px;
   width: 200px;
@@ -40,15 +39,58 @@
   z-index: -1;
 }
 
+#navigateBox {
+  position: absolute;
+  height: 40px;
+  width: 200px;
+  top: 15px;
+  right: 10px;
+  padding: 10px;
+  border: 2px solid black;
+  background-color: wheat;
+  z-index: 1;
+}
+
 #legendBox {
   position: absolute;
   height: 50px;
   width: 120px;
-  bottom: 20px;
+  bottom: 70px;
   right: 10px;
   padding: 10px;
   background-color: white;
   opacity: 0.7;
+}
+
+/* #recordTripButton {
+  position: absolute;
+  bottom: 20px;
+  left: 47%;
+  width: 6%;
+  height: 10%;
+  background-color: blue;
+  color: white;
+  font-weight: bold;
+}
+
+#result {
+  position: absolute;
+  bottom: 20px;
+  left: 25%;
+  width: 50%;
+  height: 50%;
+  display: none;
+  background-color: white;
+} */
+
+#lowBatteryAlert {
+  position: absolute;
+  left: 45%;
+  top: 5px;
+  padding: 5px;
+  border: 2px solid blue;
+  background-color: white;
+  display: none;
 }
 
 .icon {
@@ -59,3 +101,4 @@
 .legend {
   font-size: 10px;
 }
+

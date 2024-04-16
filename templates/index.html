@@ -21,6 +21,8 @@
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css">
     <script type="text/javascript" src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
 
+    <!--date js-->
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
 
     <title>Index</title>
 
@@ -31,8 +33,14 @@
     <div id="map">
     </div>
 
+    <div id="signOutLink">
+      <a href="{{ url_for('logout')}}">Sign Out</a>
+    </div>
+
     <button id="refreshButton">Refresh Button</button>
+
     <button id="filterButton">></button>
+
     <div id="filterContainer">
       <legend>Select the Company:</legend>
       <div>
@@ -48,6 +56,20 @@
         <label for="neuronCompany">Neuron</label>
       </div>
       <button id="submit">Submit</button>
+    </div>
+
+    <div id="navigateBox">
+      <input type="text" id="destinationText" placeholder="Your destination">
+      <button type="submit" id="destinationSubmit">Navigate</button>
+      <button id="destinationClear">Clear</button>
+    </div>
+
+    <!-- <button id="recordTripButton">Record the ride</button>
+
+    <div id="result"></div> -->
+
+    <div id="lowBatteryAlert">
+      <p style="font-size: 12px;">Low remaining battery level for the trip!</p>
     </div>
 
     <div id="legendBox">
